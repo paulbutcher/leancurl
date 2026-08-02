@@ -1,6 +1,0 @@
-name = "leancurl"
-version = "0.1.0"
-defaultTargets = ["Leancurl"]
-
-[[lean_lib]]
-name = "Leancurl"
