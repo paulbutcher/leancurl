@@ -10,14 +10,6 @@ def pkgConfigFlags (args : Array String) (lib : String) : IO (Array String) := d
   let out ← IO.Process.run { cmd := "pkg-config", args := args.push lib }
   return out.trimAscii.toString.splitOn " " |>.filter (· ≠ "") |>.toArray
 
--- Built as a standalone shared library (linked against system libcurl directly,
--- via a plain `cc -shared` call) rather than a `moreLinkObjs` object file, because
--- `moreLinkObjs` is deliberately excluded from per-module dynlib builds (see
--- `Module.recBuildDynlib` in Lake), which breaks `precompileModules`/interpreter
--- support for the `@[extern]` declarations. Building our own self-contained
--- `.so` also avoids re-adding `-L/usr/lib/...` to the final executable's link
--- line, which previously caused the linker to resolve `-lc` against the
--- system's dynamic libc instead of Lean's bundled static one.
 target curlShimDynlib pkg : Dynlib := do
   let srcJob ← inputTextFile <| pkg.dir / "c" / "curl_shim.c"
   srcJob.mapM fun srcFile => do
@@ -29,19 +21,15 @@ target curlShimDynlib pkg : Dynlib := do
     let libFile := pkg.sharedLibDir / (nameToSharedLib "leancurl_shim")
     let art ← buildArtifactUnlessUpToDate libFile (ext := sharedLibExt) (restore := true) do
       compileO oFile srcFile cArgs "cc"
-      compileSharedLib libFile (#[oFile.toString] ++ libs) "cc"
+      let undefinedArgs := if System.Platform.isOSX then #["-undefined", "dynamic_lookup"] else #[]
+      compileSharedLib libFile (#[oFile.toString] ++ libs ++ undefinedArgs) "cc"
     return { path := art.path, name := "leancurl_shim" : Dynlib }
 
 @[default_target]
 lean_lib Leancurl where
-  -- Needed so the interpreter (used while elaborating downstream modules in this
-  -- package, e.g. during `lake build`) can run the `@[extern]` `globalInit` call
-  -- inside FFI.lean's `initialize` block.
   precompileModules := true
   moreLinkLibs := #[curlShimDynlib]
 
--- Declared so Lake knows to build `Test.FixtureServer`: modules a `lean_exe`
--- imports are only tracked if some `lean_lib` in the package claims them.
 lean_lib Test
 
 @[test_driver]
