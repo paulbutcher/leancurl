@@ -32,3 +32,7 @@ lake test
 
 Requires `libcurl` and `pkg-config` to be available on the system (discovered
 via `pkg-config` at build time).
+
+The tests live in [`test/`](test), a separate package that requires this one by
+path, so that nothing they depend on reaches a downstream consumer. `lake test`
+at the root runs them.

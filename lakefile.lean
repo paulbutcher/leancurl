@@ -4,7 +4,8 @@
 import Lake
 open Lake DSL System
 
-package leancurl
+package leancurl where
+  builtinLint := true
 
 def pkgConfigFlags (args : Array String) (lib : String) : IO (Array String) := do
   let out ← IO.Process.run { cmd := "pkg-config", args := args.push lib }
@@ -30,8 +31,8 @@ lean_lib Leancurl where
   precompileModules := true
   moreLinkLibs := #[curlShimDynlib]
 
-lean_lib Test
-
 @[test_driver]
-lean_exe leancurlTest where
-  root := `Test.Main
+script tests do
+  let child ← IO.Process.spawn
+    { cmd := "lake", args := #["test"], cwd := __dir__ / "test" }
+  child.wait
