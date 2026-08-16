@@ -15,11 +15,6 @@ def Handle : Type := HandleImpl.type
 
 instance : Nonempty Handle := HandleImpl.property
 
-@[extern "lean_curl_global_init"]
-private opaque globalInit : IO Unit
-
-initialize globalInit
-
 @[extern "lean_curl_easy_init"]
 opaque init : IO Handle
 

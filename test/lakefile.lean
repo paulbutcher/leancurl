@@ -6,11 +6,13 @@ open Lake DSL
 
 package test where
   builtinLint := true
+  leanOptions := #[⟨`linter.extra, true⟩]
 
 require leancurl from ".."
 
 require plausible from git "https://github.com/leanprover-community/plausible" @ "v4.32.0"
 
+@[default_target]
 lean_lib Tests where
   roots := #[`Main, `FixtureServer, `Properties, `Theorems]
 

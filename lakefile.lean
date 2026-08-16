@@ -7,6 +7,9 @@ open Lake DSL System
 package leancurl where
   version := v!"0.2.0"
   builtinLint := true
+  -- Without this the `Lean.Linter.Extra` linters early-return, and `lake lint` has
+  -- nothing left to check: core registers no environment linters of its own.
+  leanOptions := #[⟨`linter.extra, true⟩]
 
 def pkgConfigFlags (args : Array String) (lib : String) : IO (Array String) := do
   let out ← IO.Process.run { cmd := "pkg-config", args := args.push lib }

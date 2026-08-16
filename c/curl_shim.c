@@ -3,6 +3,7 @@
 
 #include <lean/lean.h>
 #include <curl/curl.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -60,20 +61,20 @@ static void lc_handle_finalize(void *ptr) {
 // The handle owns no Lean objects, only C-managed buffers, so there is nothing to traverse.
 static void lc_handle_foreach(void *mod, b_lean_obj_arg fn) {}
 
-// Set once by `lean_curl_global_init`, called from an `initialize` block so it
-// runs exactly once before any handle is created. `curl_global_cleanup` is
-// deliberately not called: it would need to run after every other Lean
-// finalizer at process exit, which Lean's module system has no hook for, and
-// the OS reclaims the (purely in-process) resources it would free anyway.
+// `curl_global_cleanup` is deliberately not called: it would need to run after
+// every other Lean finalizer at process exit, which Lean's module system has no
+// hook for, and the OS reclaims the (purely in-process) resources it would free
+// anyway.
 static lean_external_class *g_handle_class = NULL;
+static pthread_once_t g_init_once = PTHREAD_ONCE_INIT;
 
-LEAN_EXPORT lean_object *lean_curl_global_init(lean_object *w) {
+static void lc_init(void) {
     curl_global_init(CURL_GLOBAL_DEFAULT);
     g_handle_class = lean_register_external_class(lc_handle_finalize, lc_handle_foreach);
-    return lean_io_result_mk_ok(lean_box(0));
 }
 
 LEAN_EXPORT lean_object *lean_curl_easy_init(lean_object *w) {
+    pthread_once(&g_init_once, lc_init);
     lc_handle *h = (lc_handle *)calloc(1, sizeof(lc_handle));
     h->curl = curl_easy_init();
     curl_easy_setopt(h->curl, CURLOPT_WRITEFUNCTION, lc_write_callback);
