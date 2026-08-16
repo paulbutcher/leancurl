@@ -5,6 +5,7 @@ import Lake
 open Lake DSL System
 
 package leancurl where
+  version := v!"0.2.0"
   builtinLint := true
 
 def pkgConfigFlags (args : Array String) (lib : String) : IO (Array String) := do
