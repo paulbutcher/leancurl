@@ -1,6 +1,8 @@
 -- Copyright (c) 2026 Paul Butcher. All rights reserved.
 -- Released under Apache 2.0 license as described in the file LICENSE.
 
+module
+
 import Leancurl
 import FixtureServer
 import Properties
@@ -79,4 +81,4 @@ def runAll : IO Unit := do
   testClientPostHttp
   IO.println "All tests passed."
 
-def main : IO Unit := runAll
+public def main : IO Unit := runAll

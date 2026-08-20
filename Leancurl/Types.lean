@@ -1,6 +1,10 @@
 -- Copyright (c) 2026 Paul Butcher. All rights reserved.
 -- Released under Apache 2.0 license as described in the file LICENSE.
 
+module
+
+public section
+
 namespace Leancurl
 
 inductive Method
@@ -15,7 +19,8 @@ deriving Repr, BEq
 
 namespace Method
 
-def toVerb : Method → String
+-- Exposed so that downstream code can reason about the verb a method puts on the wire.
+@[expose] def toVerb : Method → String
   | .get => "GET"
   | .post => "POST"
   | .put => "PUT"
