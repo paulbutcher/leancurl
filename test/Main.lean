@@ -65,12 +65,25 @@ def testClientPostHttp : IO Unit := do
   | .error e => throw <| IO.userError s!"Curl.post failed: {e.message}"
   | .ok resp =>
     assertEq "status" (201 : UInt32) resp.status
-    let requestText ← decodeUTF8 "request" (← FixtureServer.await "request" received)
+    let requestText ← decodeUTF8 "request" (← FixtureServer.request received)
     unless requestText.startsWith "POST /items" do
       throw <| IO.userError s!"unexpected request line: {requestText.takeWhile (· ≠ '\r')}"
     match (requestText.splitOn "\r\n\r\n").getLast? with
     | some "payload=42" => pure ()
     | _ => throw <| IO.userError s!"unexpected request body: {requestText}"
+
+def testClientGetLargeBody : IO Unit := do
+  let expected := FixtureServer.largeBody 2048
+  let response := FixtureServer.mkResponse 200 "OK" [] expected
+  let (port, _received) ← FixtureServer.startOnce response
+  match ← Curl.get s!"http://127.0.0.1:{port}/large" with
+  | .error e => throw <| IO.userError s!"Curl.get failed: {e.message}"
+  | .ok resp =>
+    assertEq "status" (200 : UInt32) resp.status
+    let body ← decodeUTF8 "response body" resp.body
+    assertEq "large body size" expected.length body.length
+    unless body == expected do
+      throw <| IO.userError "large body mismatch: the pieces were reassembled out of order"
 
 def runAll : IO Unit := do
   Properties.checkHeaderRoundTrip
@@ -78,6 +91,7 @@ def runAll : IO Unit := do
   testFileUrl
   testClientGetFileUrl
   testClientGetHttp
+  testClientGetLargeBody
   testClientPostHttp
   IO.println "All tests passed."
 

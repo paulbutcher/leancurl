@@ -6,7 +6,7 @@ open Lake DSL
 
 package test where
   builtinLint := true
-  leanOptions := #[⟨`linter.extra, true⟩]
+  leanOptions := #[⟨`linter.extra, true⟩, ⟨`warningAsError, true⟩]
 
 require leancurl from ".."
 

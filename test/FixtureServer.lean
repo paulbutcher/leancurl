@@ -24,6 +24,13 @@ def mkResponse (status : UInt32) (statusText : String)
     String.join (headerLines.map fun (k, v) => s!"{k}: {v}\r\n") ++ "\r\n"
   head.toUTF8 ++ bodyBytes
 
+/-- A body far past curl's per-callback maximum, so the response reaches the shim in
+many pieces. Each line names its own index, so a piece dropped, duplicated, or
+reordered during reassembly fails a comparison rather than only changing the length. -/
+def largeBody (lines : Nat) : String :=
+  let pad := String.ofList (List.replicate 64 'x')
+  String.join <| (List.range lines).map fun i => s!"line {i} {pad}\n"
+
 /-- Blocks until `promise` resolves, treating an abandoned promise as a failure
 rather than a panic. -/
 def await (what : String) (promise : IO.Promise α) : IO α :=
@@ -35,27 +42,37 @@ def await (what : String) (promise : IO.Promise α) : IO α :=
 whatever the client sends, replies with `response`, and resolves the returned
 promise with the raw bytes it received (so the caller can assert on the request
 that was actually sent). -/
-def startOnce (response : ByteArray) : IO (UInt16 × IO.Promise ByteArray) := do
+def startOnce (response : ByteArray) : IO (UInt16 × IO.Promise (Except String ByteArray)) := do
   let sock ← Socket.new
   sock.bind (.v4 { addr := IPv4Addr.ofParts 127 0 0 1, port := 0 })
   sock.listen 1
   let port := (← sock.getSockName).port
-  let received ← IO.Promise.new (α := ByteArray)
-  -- Every path resolves `received` exactly once, so a failure here surfaces as a
-  -- failed assertion on the request bytes rather than hanging the caller.
+  let received ← IO.Promise.new (α := Except String ByteArray)
+  -- Every path resolves `received` exactly once, and a failure resolves it with its
+  -- own cause: a server that never got the request must not read as a client that
+  -- sent nothing.
   let _ ← IO.asTask do
-    let request ←
+    let result ←
       try
         match ← await "accept" (← sock.accept) with
-        | .error _ => pure ByteArray.empty
+        | .error e => pure (.error s!"accept: {e}")
         | .ok conn =>
-          let request ← match ← await "recv" (← conn.recv? 65536) with
-            | .error _ | .ok none => pure ByteArray.empty
-            | .ok (some bytes) => pure bytes
-          let _ ← await "send" (← conn.send #[response])
-          pure request
-      catch _ => pure ByteArray.empty
-    received.resolve request
+          match ← await "recv" (← conn.recv? 65536) with
+          | .error e => pure (.error s!"recv: {e}")
+          | .ok none => pure (.error "recv: connection closed before any request bytes")
+          | .ok (some bytes) =>
+            match ← await "send" (← conn.send #[response]) with
+            | .error e => pure (.error s!"send: {e}")
+            | .ok () => pure (.ok bytes)
+      catch e => pure (.error (toString e))
+    received.resolve result
   return (port, received)
+
+/-- The request bytes the server received, reporting whatever stopped it from
+receiving them. -/
+def request (received : IO.Promise (Except String ByteArray)) : IO ByteArray := do
+  match ← await "request" received with
+  | .ok bytes => pure bytes
+  | .error e => throw <| IO.userError s!"fixture server: {e}"
 
 end FixtureServer
