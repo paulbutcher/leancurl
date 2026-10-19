@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2] - 2026-10-19
+
+* Chore: bump dependencies
+
 ## [0.3.1] - 2026-08-29
 
 * The build now treats warnings as errors
