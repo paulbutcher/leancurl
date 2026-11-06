@@ -10,7 +10,7 @@ package test where
 
 require leancurl from ".."
 
-require plausible from git "https://github.com/leanprover-community/plausible" @ "v4.32.0"
+require plausible from git "https://github.com/leanprover-community/plausible" @ "v4.35.0"
 
 @[default_target]
 lean_lib Tests where

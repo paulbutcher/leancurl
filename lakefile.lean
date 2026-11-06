@@ -5,7 +5,7 @@ import Lake
 open Lake DSL System
 
 package leancurl where
-  version := v!"0.3.2"
+  version := v!"0.3.3"
   builtinLint := true
   -- Without this the `Lean.Linter.Extra` linters early-return, and `lake lint` has
   -- nothing left to check: core registers no environment linters of its own.
